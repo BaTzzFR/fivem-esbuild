@@ -1,0 +1,9 @@
+{
+    "name": "fivem-esbuild",
+    "version": "1.0.0",
+    "license": "MIT",
+    "author": "BaTzzFR",
+    "dependencies": {
+        "esbuild": "^0.17.5"
+    }
+}
