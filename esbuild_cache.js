@@ -1,4 +1,3 @@
-const path = require('path');
 const fs = require('fs');
 
 function getStat(path) {
@@ -31,12 +30,10 @@ function cache({directory}) {
 
             build.onEnd((result) => {
                 if(result.errors.length) {
-                    return;
+                    return {errors: result.errors};
                 };
                 
-                fs.writeFile(directory, JSON.stringify(cache), () => {
-                    
-                });
+                fs.writeFile(directory, JSON.stringify(cache),() => {});
             });
         },
     };

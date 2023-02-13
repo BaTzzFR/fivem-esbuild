@@ -101,10 +101,16 @@ const esbuildBuildTask = {
 
                     promises.push(new Promise((resolve, reject) => {
                         console.log(`${resourceName}: built ${configName}`);
+
+                        if(!config.plugins) {
+                            config.plugins = [];
+                        };
+
+                        config.plugins.push(cache({directory: cachePath}));
+
                         esbuild.build({
                             ...config,
                             absWorkingDir: resourcePath,
-                            plugins: [cache({directory: cachePath})],
                         })
                         .then(() => {
                             buildingInProgress = false;
@@ -117,9 +123,9 @@ const esbuildBuildTask = {
 
             try {
                 await Promise.all(promises);
-            } catch (e) {
-                console.log(e);
-                cb(false, e);
+            } catch (error) {
+                console.log(error);
+                cb(false, error);
             };
 
             buildingInProgress = false;
