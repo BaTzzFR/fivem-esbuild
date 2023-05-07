@@ -1,3 +1,4 @@
+const esbuild = require('esbuild');
 const fs = require('fs');
 
 function getStat(path) {
@@ -32,11 +33,30 @@ function cache({directory}) {
                 if(result.errors.length) {
                     return {errors: result.errors};
                 };
-                
+               
                 fs.writeFile(directory, JSON.stringify(cache),() => {});
             });
         },
     };
 };
 
-module.exports = cache;
+module.exports = (options, callback) => {
+    const config = require(options.configPath);
+
+    config.absWorkingDir = options.resourcePath;
+
+    if(!config.plugins) {
+        config.plugins = [];
+    };
+
+    config.plugins.push(cache({directory: options.cachePath}));
+
+    esbuild.build(config)
+    .then(() => {
+        callback(null, {});
+    })
+    .catch((error) => {
+        callback(null, error);
+        return;
+    });
+};

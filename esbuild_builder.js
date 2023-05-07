@@ -1,8 +1,6 @@
-const esbuild = require('esbuild');
+const workerFarm = require('worker-farm');
 const path = require('path');
 const fs = require('fs');
-
-const cache = require('./esbuild_cache');
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -14,12 +12,16 @@ const esbuildBuildTask = {
     shouldBuild(resourceName) {
         const numMetaData = GetNumResourceMetadata(resourceName, 'esbuild_config');
 
-        for (let i = 0; i < numMetaData; i++) {
-            const config = GetResourceMetadata(resourceName, 'esbuild_config');
-            if(shouldBuild(config)) {
-                return true;
+        if(numMetaData > 0) {
+            for (let i = 0; i < numMetaData; i++) {
+                const config = GetResourceMetadata(resourceName, 'esbuild_config');
+                if(shouldBuild(config)) {
+                    return true;
+                };
             };
         };
+
+        return false;
 
         function loadCache(config) {
             const cachePath = `cache/${resourceName}/${config.replace(/\//g, '_')}.json`;
@@ -65,8 +67,6 @@ const esbuildBuildTask = {
                 return null;
             };
         };
-
-        return false;
     },
 
     build(resourceName, cb) {
@@ -89,6 +89,7 @@ const esbuildBuildTask = {
                 } catch {};
 
                 const config = require(configPath);
+                const workers = workerFarm(require.resolve('./esbuild_runner.js'))
                 
                 if(config) {
                     while (buildingInProgress) {
@@ -96,27 +97,28 @@ const esbuildBuildTask = {
                         await sleep(3000);
                     };
 
-                    buildingInProgress = true;
                     console.log(`${resourceName}: started building ${configName}`);
+                    buildingInProgress = true;
 
                     promises.push(new Promise((resolve, reject) => {
-                        console.log(`${resourceName}: built ${configName}`);
+                        workers({
+                            configPath,
+                            cachePath,
+                            resourcePath
+                        }, (error, out) => {
+                            workerFarm.end(workers);
 
-                        if(!config.plugins) {
-                            config.plugins = [];
-                        };
+                            if(error) {
+                                console.error(error);
+                                buildingInProgress = false;
+                                reject('Worker farm esbuild errored out');
+                                return;
+                            };
 
-                        config.plugins.push(cache({directory: cachePath}));
-
-                        esbuild.build({
-                            ...config,
-                            absWorkingDir: resourcePath,
-                        })
-                        .then(() => {
+                            console.log(`${resourceName}: built ${configName}`);
                             buildingInProgress = false;
                             resolve();
-                        })
-                        .catch(reject)
+                        });
                     }));
                 };
             };
